@@ -1,0 +1,41 @@
+{
+  "libraries": [
+    {
+      "id": "library-002",
+      "name": "Claude",
+      "path": "D:\\AI Course\\Claude\\Claude Course ChatBot-MCP-Skills-Artifacts-Etc",
+      "enabled": true,
+      "isDefault": true,
+      "lastScanned": "2026-09-02T19:32:28.146Z",
+      "courseCount": 1,
+      "moduleCount": 6,
+      "lessonCount": 15,
+      "status": "active"
+    },
+    {
+      "id": "library-003",
+      "name": "Claude-CoWork Mastery Build AI Teammates",
+      "path": "D:\\AI Course\\Claude\\Claude-CoWork Mastery BuildAI Teammates-That-Actually",
+      "enabled": true,
+      "isDefault": false,
+      "lastScanned": "2026-09-02T19:32:28.158Z",
+      "courseCount": 1,
+      "moduleCount": 3,
+      "lessonCount": 18,
+      "status": "active"
+    },
+    {
+      "id": "library-004",
+      "name": "Openclaw Course",
+      "path": "D:\\AI Course\\Openclaw\\Openclaw",
+      "enabled": true,
+      "isDefault": false,
+      "lastScanned": "2026-09-02T19:32:28.174Z",
+      "courseCount": 1,
+      "moduleCount": 3,
+      "lessonCount": 29,
+      "status": "active"
+    }
+  ],
+  "version": 1
+}

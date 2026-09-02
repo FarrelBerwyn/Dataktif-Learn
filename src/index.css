@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --milk-blue: #DCEEFF;
+    --soft-blue: #BFDFFF;
+    --primary-blue: #5B9FE8;
+    --deep-blue: #2867A8;
+    --milk-white: #F8FBFF;
+    --surface: #FFFFFF;
+    --text-primary: #18324A;
+    --text-secondary: #6B8195;
+    --text-muted: #9AAEBD;
+    --border: rgba(80, 140, 190, 0.16);
+  }
+
+  body {
+    font-family: 'Inter', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    color: #18324A;
+    background-color: #F8FBFF;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* Milk Blue Morphism Utilities */
+.milk-surface {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(80, 140, 190, 0.15);
+  box-shadow: 0 10px 32px rgba(191, 223, 255, 0.35), 0 1px 2px rgba(40, 103, 168, 0.05);
+}
+
+.milk-card {
+  background: #FFFFFF;
+  border: 1px solid rgba(80, 140, 190, 0.14);
+  box-shadow: 0 4px 20px rgba(220, 238, 255, 0.45);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.milk-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(91, 159, 232, 0.35);
+  box-shadow: 0 12px 32px rgba(191, 223, 255, 0.6);
+}
+
+.milk-pill {
+  background: #F0F7FF;
+  border: 1px solid rgba(91, 159, 232, 0.2);
+  color: #2867A8;
+}
+
+.milk-btn-primary {
+  background: #5B9FE8;
+  color: #FFFFFF;
+  box-shadow: 0 4px 14px rgba(91, 159, 232, 0.38);
+  transition: all 0.2s ease;
+}
+
+.milk-btn-primary:hover {
+  background: #4A8ED8;
+  box-shadow: 0 6px 20px rgba(91, 159, 232, 0.5);
+}
+
+/* Custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(220, 238, 255, 0.3);
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(191, 223, 255, 0.85);
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #5B9FE8;
+}
+
+/* Scrubber range styling */
+input[type=range] {
+  accent-color: #5B9FE8;
+}

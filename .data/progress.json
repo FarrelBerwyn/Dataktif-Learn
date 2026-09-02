@@ -1,0 +1,36 @@
+{
+  "completedLessons": [
+    "1-introduction-to-claude-ai-4-3-claude-ecosystem-layer-claude-chatbot-cowork-code",
+    "1-introduction-to-claude-ai-2-topics-to-be-covered-ai-assistant-and-claude-ai",
+    "1-introduction-to-claude-ai-1-learn-claude-ai-course-chatbot-mcp-skills-artifacts-etc",
+    "1-introduction-to-claude-ai-3-setup-claude-ai-step-by-step-on-web-system",
+    "claude-cowork-mastery-buildai-teammates-that-actually-1-what-is-claude-cowork-ai-as-collaborator-vs-assistant",
+    "claude-course-chatbot-mcp-skills-artifacts-etc-5-full-claude-ai-user-interface-navigation",
+    "claude-course-chatbot-mcp-skills-artifacts-etc-6-learning-about-ai-model-selection-opus-haiku-and-sonnet",
+    "claude-course-chatbot-mcp-skills-artifacts-etc-7-deep-think-with-extended-thinking",
+    "claude-course-chatbot-mcp-skills-artifacts-etc-9-write-better-prompts-with-this-elements",
+    "claude-course-chatbot-mcp-skills-artifacts-etc-12-understand-artifacts-with-templates",
+    "claude-course-chatbot-mcp-skills-artifacts-etc-10-custom-instructions-for-personalized-responses",
+    "claude-course-chatbot-mcp-skills-artifacts-etc-11-best-ways-to-use-claude-file-uploads",
+    "claude-course-chatbot-mcp-skills-artifacts-etc-13-create-daily-task-tracker-project-1",
+    "claude-course-chatbot-mcp-skills-artifacts-etc-14-create-portfolio-website-from-pdf-project-2",
+    "claude-course-chatbot-mcp-skills-artifacts-etc-15-claude-projects",
+    "claude-course-chatbot-mcp-skills-artifacts-etc-16-claude-skills",
+    "claude-course-chatbot-mcp-skills-artifacts-etc-17-basics-of-mcp-and-connect-with-external-tools",
+    "claude-course-chatbot-mcp-skills-artifacts-etc-18-create-skills-using-mcp-and-connectors",
+    "claude-cowork-mastery-buildai-teammates-that-actually-2-mental-model-ai-coworker-vs-chatbot-vs-agent",
+    "claude-cowork-mastery-buildai-teammates-that-actually-3-how-claude-thinks-context-reasoning-memory-limitations"
+  ],
+  "progressPercentByCourse": {},
+  "playbackTimes": {},
+  "notes": [
+    {
+      "id": "note-1788368445962-y2tg",
+      "lessonId": "openclaw-8-openclaw-local-setup-installation-on-linux-macos-and-windows",
+      "courseId": "library-004/openclaw",
+      "timestamp": 14,
+      "text": "18:00",
+      "createdAt": "2026-09-02T17:00:45.962Z"
+    }
+  ]
+}

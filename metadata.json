@@ -1,0 +1,6 @@
+{
+  "name": "Dataktif Learn",
+  "description": "A premium online video course platform with automatic local folder course scanning, Milk Blue morphism design, and structured curriculum navigation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

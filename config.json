@@ -1,0 +1,6 @@
+{
+  "videoFolder": "./videos",
+  "thumbnailFolder": "./thumbnails",
+  "posterFolder": "./posters",
+  "metadataFolder": "./metadata"
+}
