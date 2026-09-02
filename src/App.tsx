@@ -17,6 +17,7 @@ import { MyLearningView } from './components/MyLearningView';
 import { SettingsView } from './components/SettingsView';
 import { DashboardView } from './components/DashboardView';
 import { useLanguage } from './context/LanguageContext';
+import demoLibraryData from './data/demoLibrary.json';
 import {
   FolderOpen,
   FolderSync,
@@ -97,7 +98,7 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  // Fetch library data from server
+  // Fetch library data from server (with static fallback for GitHub Pages)
   const fetchLibrary = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -105,9 +106,11 @@ export default function App() {
       if (res.ok) {
         const data: LibraryData = await res.json();
         setLibrary(data);
+      } else {
+        setLibrary(demoLibraryData as LibraryData);
       }
-    } catch (err) {
-      console.error('Failed to load library:', err);
+    } catch {
+      setLibrary(demoLibraryData as LibraryData);
     } finally {
       setIsLoading(false);
     }
