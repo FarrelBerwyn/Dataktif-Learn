@@ -98,26 +98,50 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  // Fetch library data from server (with static fallback for GitHub Pages)
+  // Strict environment separation: GitHub Pages uses YouTube dummy data; Localhost uses private data
+  const isGitHubPages = Boolean(
+    typeof window !== 'undefined' &&
+      (window.location.hostname.includes('github.io') ||
+        window.location.hostname.includes('github.com'))
+  );
+
+  // Fetch library data:
+  // - On GitHub Pages: ALWAYS uses educational YouTube dummy data
+  // - On Localhost: STRICTLY uses personal private local library from local server
   const fetchLibrary = useCallback(async () => {
+    if (isGitHubPages) {
+      setLibrary(demoLibraryData as unknown as LibraryData);
+      setIsLoading(false);
+      return;
+    }
+
+    // Localhost: Private personal courses ONLY
     try {
       setIsLoading(true);
       const res = await fetch('/api/library');
       if (res.ok) {
         const data: LibraryData = await res.json();
         setLibrary(data);
-      } else {
-        setLibrary(demoLibraryData as unknown as LibraryData);
       }
-    } catch {
-      setLibrary(demoLibraryData as unknown as LibraryData);
+    } catch (err) {
+      console.error('Failed to load private library on localhost:', err);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [isGitHubPages]);
 
-  // Fetch user progress from server API
+  // Fetch user progress:
+  // - On GitHub Pages: Uses localStorage demo key
+  // - On Localhost: Syncs with personal server API
   const fetchProgress = useCallback(async () => {
+    if (isGitHubPages) {
+      try {
+        const saved = localStorage.getItem('completed_lessons_demo');
+        if (saved) setCompletedLessonIds(JSON.parse(saved));
+      } catch {}
+      return;
+    }
+
     try {
       const res = await fetch('/api/user/progress');
       if (res.ok) {
@@ -130,9 +154,9 @@ export default function App() {
         }
       }
     } catch (err) {
-      console.warn('Could not sync user progress from server:', err);
+      console.warn('Could not sync personal progress from server:', err);
     }
-  }, []);
+  }, [isGitHubPages]);
 
   useEffect(() => {
     fetchLibrary();
@@ -193,21 +217,26 @@ export default function App() {
 
     setCompletedLessonIds(updated);
     try {
-      localStorage.setItem('completed_lessons', JSON.stringify(updated));
+      localStorage.setItem(
+        isGitHubPages ? 'completed_lessons_demo' : 'completed_lessons',
+        JSON.stringify(updated)
+      );
     } catch {}
 
-    // Post to server
-    try {
-      await fetch('/api/user/progress', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          lessonId,
-          completed: isNowDone,
-          courseId: activeCourse?.id || '',
-        }),
-      });
-    } catch {}
+    // Only post to backend server when on localhost
+    if (!isGitHubPages) {
+      try {
+        await fetch('/api/user/progress', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            lessonId,
+            completed: isNowDone,
+            courseId: activeCourse?.id || '',
+          }),
+        });
+      } catch {}
+    }
   };
 
   // Launch lesson player in classroom mode
