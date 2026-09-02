@@ -67,6 +67,22 @@ export const LessonPlayerView: React.FC<LessonPlayerViewProps> = ({
 
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Check if current lesson is a YouTube video URL
+  const isYouTube = Boolean(
+    currentLesson.url && (currentLesson.url.includes('youtube.com') || currentLesson.url.includes('youtu.be'))
+  );
+
+  const getYouTubeEmbedUrl = (url: string) => {
+    if (!url) return '';
+    if (url.includes('/embed/')) {
+      return url.includes('?') ? `${url}&autoplay=1&rel=0` : `${url}?autoplay=1&rel=0`;
+    }
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    const id = match && match[2].length === 11 ? match[2] : null;
+    return id ? `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0` : url;
+  };
+
   // Flatten course lessons to find previous & next lessons
   const allLessons: Lesson[] = [];
   course.subCourses.forEach((s) => s.lessons.forEach((l) => allLessons.push(l)));
@@ -352,31 +368,42 @@ export const LessonPlayerView: React.FC<LessonPlayerViewProps> = ({
             onMouseLeave={() => isPlaying && setShowControls(false)}
             className="relative aspect-video w-full rounded-2xl bg-[#0e1726] overflow-hidden shadow-[0_12px_36px_rgba(40,103,168,0.25)] border border-[rgba(80,140,190,0.2)] group select-none"
           >
-            <video
-              ref={videoRef}
-              key={currentLesson.id}
-              src={currentLesson.url}
-              className="w-full h-full object-contain cursor-pointer"
-              onClick={togglePlay}
-              onTimeUpdate={() => {
-                if (!videoRef.current) return;
-                const curr = videoRef.current.currentTime;
-                const dur = videoRef.current.duration;
-                setCurrentTime(curr);
+            {isYouTube ? (
+              <iframe
+                key={currentLesson.id}
+                src={getYouTubeEmbedUrl(currentLesson.url)}
+                title={currentLesson.title}
+                className="w-full h-full border-0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            ) : (
+              <video
+                ref={videoRef}
+                key={currentLesson.id}
+                src={currentLesson.url}
+                className="w-full h-full object-contain cursor-pointer"
+                onClick={togglePlay}
+                onTimeUpdate={() => {
+                  if (!videoRef.current) return;
+                  const curr = videoRef.current.currentTime;
+                  const dur = videoRef.current.duration;
+                  setCurrentTime(curr);
 
-                // Reliable auto-advance trigger when video reaches the end
-                if (dur > 0 && curr >= dur - 0.35 && !hasEndedRef.current) {
-                  handleVideoEnded();
-                }
-              }}
-              onLoadedMetadata={() => {
-                if (videoRef.current) {
-                  setDuration(videoRef.current.duration);
-                  videoRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
-                }
-              }}
-              onEnded={handleVideoEnded}
-            />
+                  // Reliable auto-advance trigger when video reaches the end
+                  if (dur > 0 && curr >= dur - 0.35 && !hasEndedRef.current) {
+                    handleVideoEnded();
+                  }
+                }}
+                onLoadedMetadata={() => {
+                  if (videoRef.current) {
+                    setDuration(videoRef.current.duration);
+                    videoRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+                  }
+                }}
+                onEnded={handleVideoEnded}
+              />
+            )}
 
             {/* Auto-advance notification banner */}
             {nextLessonNotification && (
@@ -389,8 +416,8 @@ export const LessonPlayerView: React.FC<LessonPlayerViewProps> = ({
               </div>
             )}
 
-            {/* Click to play overlay when paused */}
-            {!isPlaying && (
+            {/* Click to play overlay when paused (HTML5 only) */}
+            {!isYouTube && !isPlaying && (
               <div
                 onClick={togglePlay}
                 className="absolute inset-0 flex items-center justify-center bg-black/25 backdrop-blur-[2px] cursor-pointer"
@@ -401,12 +428,13 @@ export const LessonPlayerView: React.FC<LessonPlayerViewProps> = ({
               </div>
             )}
 
-            {/* Milk Blue Video Controls Bar */}
-            <div
-              className={`absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent transition-opacity duration-300 ${
-                showControls || !isPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'
-              }`}
-            >
+            {/* Milk Blue Video Controls Bar (HTML5 only) */}
+            {!isYouTube && (
+              <div
+                className={`absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent transition-opacity duration-300 ${
+                  showControls || !isPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                }`}
+              >
               {/* Progress Scrubber */}
               <div className="mb-3">
                 <input
@@ -510,6 +538,7 @@ export const LessonPlayerView: React.FC<LessonPlayerViewProps> = ({
                 </div>
               </div>
             </div>
+            )}
           </div>
 
           {/* Sequential Navigation & Lesson Title Bar */}

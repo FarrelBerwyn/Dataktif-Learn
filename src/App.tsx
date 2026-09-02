@@ -107,10 +107,10 @@ export default function App() {
         const data: LibraryData = await res.json();
         setLibrary(data);
       } else {
-        setLibrary(demoLibraryData as LibraryData);
+        setLibrary(demoLibraryData as unknown as LibraryData);
       }
     } catch {
-      setLibrary(demoLibraryData as LibraryData);
+      setLibrary(demoLibraryData as unknown as LibraryData);
     } finally {
       setIsLoading(false);
     }
