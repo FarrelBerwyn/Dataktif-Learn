@@ -22,6 +22,7 @@ import {
   linkLessonsSequentially,
   CURATED_COURSES,
 } from './courseScanner';
+import { getStoredYouTubeCourses } from './youtubeService';
 
 const DATA_DIR = path.join(process.cwd(), '.data');
 const LIBRARIES_FILE = path.join(DATA_DIR, 'libraries.json');
@@ -832,9 +833,20 @@ class LibraryManager {
     for (const lib of enabledLibs) {
       const scanResult = scanSingleLibrary(lib);
       for (const course of scanResult.courses) {
+        course.source = 'local';
+        course.subCourses.forEach((s) => s.lessons.forEach((l) => (l.source = 'local')));
         allCourses.push(course);
         if (course.category) categorySet.add(course.category);
       }
+    }
+
+    // Merge YouTube courses
+    const ytCourses = getStoredYouTubeCourses();
+    for (const ytCourse of ytCourses) {
+      ytCourse.source = 'youtube';
+      ytCourse.subCourses.forEach((s) => s.lessons.forEach((l) => (l.source = 'youtube')));
+      allCourses.push(ytCourse);
+      if (ytCourse.category) categorySet.add(ytCourse.category);
     }
 
     const hasLocalCourses = allCourses.length > 0;

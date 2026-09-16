@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Clock, Play, CheckCircle2, User, Star, BookOpen } from 'lucide-react';
+import { Clock, Play, CheckCircle2, User, Star, BookOpen, Youtube } from 'lucide-react';
 import { Course, Lesson } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -67,9 +67,21 @@ export const CourseCard: React.FC<CourseCardProps> = ({
       {/* 4. Top Badges: Category/Level & Rating/Status */}
       <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none z-10">
         <div className="flex items-center gap-1.5">
-          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-black/40 backdrop-blur-md text-white/95 border border-white/15 shadow-xs">
-            {course.category}
-          </span>
+          {course.source === 'youtube' ? (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-red-600/95 text-white backdrop-blur-md border border-red-400/30 shadow-xs flex items-center gap-1">
+              <Youtube className="w-3 h-3 fill-current" />
+              <span>YouTube</span>
+            </span>
+          ) : (
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-black/40 backdrop-blur-md text-white/95 border border-white/15 shadow-xs">
+              {course.category}
+            </span>
+          )}
+          {course.source === 'youtube' && (
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-black/40 backdrop-blur-md text-white/95 border border-white/15 shadow-xs hidden sm:inline-block">
+              {course.category}
+            </span>
+          )}
           {course.featured && (
             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-[#2867A8]/90 text-white backdrop-blur-md border border-[#5B9FE8]/30 shadow-xs hidden sm:inline-block">
               Featured

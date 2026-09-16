@@ -14,15 +14,18 @@ import {
 } from 'lucide-react';
 import { Course, Lesson } from '../types';
 import { CourseRow } from './CourseRow';
+import { CourseCard } from './CourseCard';
+import { DashboardPinBoard } from './DashboardPinBoard';
 import { useLanguage } from '../context/LanguageContext';
 
 interface DashboardViewProps {
   courses: Course[];
   completedLessonIds: string[];
   onSelectCourse: (course: Course) => void;
-  onStartLearning: (course: Course, lesson?: Lesson) => void;
+  onStartLearning: (course: Course, lesson?: Lesson, timestamp?: number) => void;
   onNavigateToCourses: (category?: string) => void;
   onOpenFolderSettings: () => void;
+  onViewAllNotes?: () => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -31,6 +34,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onSelectCourse,
   onStartLearning,
   onNavigateToCourses,
+  onViewAllNotes,
 }) => {
   const { t, profile } = useLanguage();
 
@@ -301,143 +305,222 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </section>
 
-      {/* 3. CONTINUE LEARNING SECTION (Directly visible in first viewport without scrolling) */}
-      {continueLearningCourses.length > 0 && (
-        <section className="space-y-2.5 sm:space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-sm sm:text-base font-bold text-[#18324A] tracking-tight flex items-center gap-2">
-                <Play className="w-3.5 h-3.5 text-[#5B9FE8] fill-current" />
-                <span>{t.dashboard.continueLearningSection}</span>
-              </h2>
-              <p className="text-[11px] text-[#6B8195]">
-                {t.dashboard.continueLearningSubtitle}
-              </p>
-            </div>
-            <button
-              onClick={() => onNavigateToCourses()}
-              className="text-xs font-semibold text-[#2867A8] hover:text-[#5B9FE8] flex items-center gap-1 cursor-pointer"
-            >
-              <span>{t.dashboard.allCoursesButton}</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {continueLearningCourses.slice(0, 3).map((course) => {
-              const allLessons: Lesson[] = [];
-              course.subCourses.forEach((s) => s.lessons.forEach((l) => allLessons.push(l)));
-              const doneCount = allLessons.filter((l) => completedLessonIds.includes(l.id)).length;
-              const percent = Math.round((doneCount / allLessons.length) * 100);
-              const firstUncompleted =
-                allLessons.find((l) => !completedLessonIds.includes(l.id)) || allLessons[0];
-
-              return (
-                <div
-                  key={course.id}
-                  onClick={() => onSelectCourse(course)}
-                  className="p-3 sm:p-3.5 rounded-xl sm:rounded-2xl bg-white/90 backdrop-blur-md border border-[rgba(80,140,190,0.18)] shadow-2xs hover:shadow-md hover:border-[#5B9FE8] transition-all flex flex-col justify-between cursor-pointer group"
+      {/* 3. SPLIT SECTION: CONTINUE LEARNING & CATEGORIES (LEFT ~58%) + PIN BOARD (RIGHT ~42%) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Column (lg:col-span-7, ~58% width): Continue Learning & Categories */}
+        <div className="lg:col-span-7 space-y-6">
+          {/* Continue Learning Section */}
+          {continueLearningCourses.length > 0 && (
+            <section className="space-y-2.5 sm:space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm sm:text-base font-bold text-[#18324A] tracking-tight flex items-center gap-2">
+                    <Play className="w-3.5 h-3.5 text-[#5B9FE8] fill-current" />
+                    <span>{t.dashboard.continueLearningSection}</span>
+                  </h2>
+                  <p className="text-[11px] text-[#6B8195]">
+                    {t.dashboard.continueLearningSubtitle}
+                  </p>
+                </div>
+                <button
+                  onClick={() => onNavigateToCourses()}
+                  className="text-xs font-semibold text-[#2867A8] hover:text-[#5B9FE8] flex items-center gap-1 cursor-pointer"
                 >
-                  <div className="flex items-center gap-3 mb-2.5">
-                    <div className="w-18 h-12 rounded-lg overflow-hidden bg-slate-100 shrink-0 relative border border-[rgba(80,140,190,0.15)]">
-                      {course.thumbnail ? (
-                        <img
-                          src={course.thumbnail}
-                          alt={course.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-[#DCEEFF] flex items-center justify-center">
-                          <BookOpen className="w-4 h-4 text-[#2867A8]" />
+                  <span>{t.dashboard.allCoursesButton}</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {continueLearningCourses.slice(0, 4).map((course) => {
+                  const allLessons: Lesson[] = [];
+                  course.subCourses.forEach((s) => s.lessons.forEach((l) => allLessons.push(l)));
+                  const doneCount = allLessons.filter((l) => completedLessonIds.includes(l.id)).length;
+                  const percent = Math.round((doneCount / allLessons.length) * 100);
+                  const firstUncompleted =
+                    allLessons.find((l) => !completedLessonIds.includes(l.id)) || allLessons[0];
+
+                  return (
+                    <div
+                      key={course.id}
+                      onClick={() => onSelectCourse(course)}
+                      className="p-3 sm:p-3.5 rounded-xl sm:rounded-2xl bg-white/90 backdrop-blur-md border border-[rgba(80,140,190,0.18)] shadow-2xs hover:shadow-md hover:border-[#5B9FE8] transition-all flex flex-col justify-between cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-3 mb-2.5">
+                        <div className="w-18 h-12 rounded-lg overflow-hidden bg-slate-100 shrink-0 relative border border-[rgba(80,140,190,0.15)]">
+                          {course.thumbnail ? (
+                            <img
+                              src={course.thumbnail}
+                              alt={course.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-[#DCEEFF] flex items-center justify-center">
+                              <BookOpen className="w-4 h-4 text-[#2867A8]" />
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
 
-                    <div className="min-w-0 flex-1">
-                      <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-[#DCEEFF] text-[#2867A8]">
-                        {course.category}
-                      </span>
-                      <h3 className="font-bold text-xs text-[#18324A] truncate mt-0.5 group-hover:text-[#2867A8] transition-colors">
-                        {course.title}
-                      </h3>
-                      <p className="text-[10px] text-[#6B8195] truncate">
-                        Next: {firstUncompleted?.title}
-                      </p>
-                    </div>
-                  </div>
+                        <div className="min-w-0 flex-1">
+                          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-[#DCEEFF] text-[#2867A8]">
+                            {course.category}
+                          </span>
+                          <h3 className="font-bold text-xs text-[#18324A] truncate mt-0.5 group-hover:text-[#2867A8] transition-colors">
+                            {course.title}
+                          </h3>
+                          <p className="text-[10px] text-[#6B8195] truncate">
+                            Next: {firstUncompleted?.title}
+                          </p>
+                        </div>
+                      </div>
 
-                  {/* Compact Progress bar */}
-                  <div>
-                    <div className="flex items-center justify-between text-[10px] text-[#6B8195] mb-1 font-medium">
-                      <span>
-                        {doneCount} {t.catalog.of} {course.lessonCount} {t.catalog.lessons}
-                      </span>
-                      <span className="font-bold text-[#2867A8]">{percent}%</span>
+                      {/* Compact Progress bar */}
+                      <div>
+                        <div className="flex items-center justify-between text-[10px] text-[#6B8195] mb-1 font-medium">
+                          <span>
+                            {doneCount} {t.catalog.of} {course.lessonCount} {t.catalog.lessons}
+                          </span>
+                          <span className="font-bold text-[#2867A8]">{percent}%</span>
+                        </div>
+                        <div className="w-full h-1.5 bg-[#F0F5FA] rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-[#5B9FE8] to-[#2867A8] rounded-full"
+                            style={{ width: `${percent}%` }}
+                          />
+                        </div>
+                      </div>
                     </div>
-                    <div className="w-full h-1.5 bg-[#F0F5FA] rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-[#5B9FE8] to-[#2867A8] rounded-full"
-                        style={{ width: `${percent}%` }}
-                      />
-                    </div>
-                  </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {/* Explore By Category Quick Shelf */}
+          {categoryList.length > 0 && (
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm sm:text-base font-bold text-[#18324A] tracking-tight">
+                    {t.dashboard.categoriesSection}
+                  </h2>
+                  <p className="text-[11px] text-[#6B8195]">
+                    {t.dashboard.categoriesSubtitle}
+                  </p>
                 </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
+                <button
+                  onClick={() => onNavigateToCourses()}
+                  className="text-xs font-semibold text-[#2867A8] hover:text-[#5B9FE8] flex items-center gap-1 cursor-pointer"
+                >
+                  <span>{t.dashboard.viewAllCategories}</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
 
-      {/* 4. EXPLORE BY CATEGORY QUICK SHELF */}
-      {categoryList.length > 0 && (
-        <section className="space-y-3 pt-2">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base sm:text-lg font-bold text-[#18324A] tracking-tight">
-                {t.dashboard.categoriesSection}
-              </h2>
-              <p className="text-[11px] text-[#6B8195]">
-                {t.dashboard.categoriesSubtitle}
-              </p>
-            </div>
-            <button
-              onClick={() => onNavigateToCourses()}
-              className="text-xs font-semibold text-[#2867A8] hover:text-[#5B9FE8] flex items-center gap-1 cursor-pointer"
-            >
-              <span>{t.dashboard.viewAllCategories}</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                {categoryList.slice(0, 6).map(([category, count]) => (
+                  <button
+                    key={category}
+                    onClick={() => onNavigateToCourses(category)}
+                    className="p-3 rounded-xl bg-white/80 backdrop-blur-md hover:bg-[#F0F7FF] border border-[rgba(80,140,190,0.18)] hover:border-[#5B9FE8] shadow-2xs hover:shadow-xs transition-all text-left group cursor-pointer"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-[#DCEEFF] text-[#2867A8] group-hover:bg-[#2867A8] group-hover:text-white flex items-center justify-center mb-1.5 transition-colors">
+                      <Layers className="w-3.5 h-3.5" />
+                    </div>
+                    <h4 className="font-bold text-xs text-[#18324A] group-hover:text-[#2867A8] truncate">
+                      {category}
+                    </h4>
+                    <p className="text-[10px] text-[#6B8195] mt-0.5">
+                      {count} {count === 1 ? 'Course' : 'Courses'}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5">
-            {categoryList.slice(0, 6).map(([category, count]) => (
-              <button
-                key={category}
-                onClick={() => onNavigateToCourses(category)}
-                className="p-3 rounded-xl bg-white/80 backdrop-blur-md hover:bg-[#F0F7FF] border border-[rgba(80,140,190,0.18)] hover:border-[#5B9FE8] shadow-2xs hover:shadow-xs transition-all text-left group cursor-pointer"
-              >
-                <div className="w-7 h-7 rounded-lg bg-[#DCEEFF] text-[#2867A8] group-hover:bg-[#2867A8] group-hover:text-white flex items-center justify-center mb-1.5 transition-colors">
-                  <Layers className="w-3.5 h-3.5" />
+          {/* 5. FEATURED MASTERCLASSES ("Rekomendasi Course Terpilih" - 3 kartu dengan ukuran thumbnail sama seperti Course Terbaru) */}
+          <section className="pt-2 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base sm:text-lg lg:text-[20px] font-bold text-[#18324A] tracking-tight">
+                    {t.dashboard.featuredSection}
+                  </h2>
+                  <span className="text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#DCEEFF] text-[#2867A8] border border-[#BFDFFF]">
+                    Featured
+                  </span>
                 </div>
-                <h4 className="font-bold text-xs text-[#18324A] group-hover:text-[#2867A8] truncate">
-                  {category}
-                </h4>
-                <p className="text-[10px] text-[#6B8195] mt-0.5">
-                  {count} {count === 1 ? 'Course' : 'Courses'}
+                <p className="text-[11px] sm:text-xs text-[#6B8195] mt-0.5 hidden sm:block">
+                  {t.dashboard.featuredSubtitle}
                 </p>
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
+              </div>
 
-      {/* 5. FEATURED MASTERCLASSES ROW */}
+              <button
+                onClick={() => onNavigateToCourses()}
+                className="text-xs font-semibold text-[#2867A8] hover:text-[#5B9FE8] flex items-center gap-1 cursor-pointer"
+              >
+                <span>{t.dashboard.allCoursesButton}</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Grid 3 kartu berukuran sama dengan Course Terbaru */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5 sm:gap-4">
+              {displayFeatured.slice(0, 3).map((course) => {
+                const allLessons: Lesson[] = [];
+                course.subCourses.forEach((s) => s.lessons.forEach((l) => allLessons.push(l)));
+                const doneCount = allLessons.filter((l) => completedLessonIds.includes(l.id)).length;
+                const percent = allLessons.length > 0 ? Math.round((doneCount / allLessons.length) * 100) : 0;
+                const nextLesson = allLessons.find((l) => !completedLessonIds.includes(l.id)) || allLessons[0];
+                const nextLessonIndex = nextLesson
+                  ? allLessons.findIndex((l) => l.id === nextLesson.id) + 1
+                  : doneCount;
+
+                const currentLessonInfo =
+                  percent > 0
+                    ? {
+                        lessonNumber: nextLessonIndex > 0 ? nextLessonIndex : 1,
+                        totalLessons: allLessons.length,
+                        lessonTitle: nextLesson?.title,
+                        nextLesson,
+                      }
+                    : undefined;
+
+                return (
+                  <div key={course.id} className="w-full">
+                    <CourseCard
+                      course={course}
+                      progressPercent={percent}
+                      completedLessonsCount={doneCount}
+                      currentLessonInfo={currentLessonInfo}
+                      onSelectCourse={onSelectCourse}
+                      onStartLearning={onStartLearning}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        </div>
+
+        {/* Right Column (lg:col-span-5, ~42% width): Cork Pin Board with Sticky Notes */}
+        <div className="lg:col-span-5 lg:sticky lg:top-24">
+          <DashboardPinBoard
+            courses={courses}
+            onStartLearning={onStartLearning}
+            onViewAllNotes={onViewAllNotes || (() => onNavigateToCourses())}
+          />
+        </div>
+      </div>
+
+      {/* 6. RECENT COURSES ROW */}
       <section className="pt-2">
         <CourseRow
-          title={t.dashboard.featuredSection}
-          subtitle={t.dashboard.featuredSubtitle}
-          badge="Featured"
-          courses={displayFeatured}
+          title={t.dashboard.recentCoursesSection}
+          subtitle={t.dashboard.recentCoursesSubtitle}
+          badge="New"
+          courses={newCourses}
           completedLessonIds={completedLessonIds}
           onSelectCourse={onSelectCourse}
           onStartLearning={onStartLearning}

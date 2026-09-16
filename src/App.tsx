@@ -16,8 +16,10 @@ import { FolderSettingsModal } from './components/FolderSettingsModal';
 import { MyLearningView } from './components/MyLearningView';
 import { SettingsView } from './components/SettingsView';
 import { DashboardView } from './components/DashboardView';
+import { FloatingVideoPlayer } from './components/FloatingVideoPlayer';
 import { useLanguage } from './context/LanguageContext';
 import demoLibraryData from './data/demoLibrary.json';
+import { generateLessonPath, parseLessonPath, matchCourseAndLesson } from './utils/urlHelper';
 import {
   FolderOpen,
   FolderSync,
@@ -28,7 +30,11 @@ import {
   ArrowRight,
   BookOpen,
   ChevronDown,
+  Youtube,
+  Folder,
+  Plus,
 } from 'lucide-react';
+import { AddYouTubeCourseModal } from './components/AddYouTubeCourseModal';
 
 export default function App() {
   const { t } = useLanguage();
@@ -45,11 +51,19 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
 
+  // Course Source Tab: All vs Local vs YouTube
+  const [selectedSource, setSelectedSource] = useState<'all' | 'local' | 'youtube'>('all');
+  const [isAddYouTubeModalOpen, setIsAddYouTubeModalOpen] = useState(false);
+
   // Modals & Active Learning Player
   const [selectedCourseForDetail, setSelectedCourseForDetail] = useState<Course | null>(null);
   const [activeCourse, setActiveCourse] = useState<Course | null>(null);
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
   const [isFolderSettingsOpen, setIsFolderSettingsOpen] = useState(false);
+  const [isFloatingPlayer, setIsFloatingPlayer] = useState(false);
+  const [floatingPlayerTime, setFloatingPlayerTime] = useState(0);
+  const [floatingPlayerPlaying, setFloatingPlayerPlaying] = useState(true);
+  const [initialSeekTime, setInitialSeekTime] = useState(0);
 
   // Background video fade-out to white & fade-in loop
   const bgVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -163,6 +177,50 @@ export default function App() {
     fetchProgress();
   }, [fetchLibrary, fetchProgress]);
 
+  // Sync route on initial load and handle browser Back/Forward (popstate)
+  useEffect(() => {
+    if (!library || !library.courses || library.courses.length === 0) return;
+
+    // Check if current URL path matches /nama_course/video_course
+    const pathInfo = parseLessonPath(window.location.pathname);
+    if (pathInfo) {
+      const match = matchCourseAndLesson(
+        library.courses,
+        pathInfo.courseSlug,
+        pathInfo.videoSlug
+      );
+      if (match) {
+        setActiveCourse(match.course);
+        setActiveLesson(match.lesson);
+        setIsFloatingPlayer(false);
+      }
+    }
+
+    const handlePopState = () => {
+      const currentPathInfo = parseLessonPath(window.location.pathname);
+      if (currentPathInfo && library?.courses) {
+        const match = matchCourseAndLesson(
+          library.courses,
+          currentPathInfo.courseSlug,
+          currentPathInfo.videoSlug
+        );
+        if (match) {
+          setActiveCourse(match.course);
+          setActiveLesson(match.lesson);
+          setIsFloatingPlayer(false);
+          return;
+        }
+      }
+      // If path is root or other, reset active classroom
+      setActiveCourse(null);
+      setActiveLesson(null);
+      setIsFloatingPlayer(false);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [library]);
+
   // Rescan video directory
   const handleRescan = async () => {
     setIsRescanning(true);
@@ -240,17 +298,29 @@ export default function App() {
   };
 
   // Launch lesson player in classroom mode
-  const handleStartLearning = (course: Course, specificLesson?: Lesson) => {
+  const handleStartLearning = (
+    course: Course,
+    specificLesson?: Lesson,
+    seekTime?: number
+  ) => {
     setActiveCourse(course);
+    setIsFloatingPlayer(false);
+    let chosenLesson: Lesson | null = null;
     if (specificLesson) {
-      setActiveLesson(specificLesson);
+      chosenLesson = specificLesson;
     } else {
       // Find first uncompleted lesson, or default to first lesson
       const allLessons: Lesson[] = [];
       course.subCourses.forEach((s) => s.lessons.forEach((l) => allLessons.push(l)));
       const firstUncompleted =
         allLessons.find((l) => !completedLessonIds.includes(l.id)) || allLessons[0];
-      setActiveLesson(firstUncompleted || null);
+      chosenLesson = firstUncompleted || null;
+    }
+    setActiveLesson(chosenLesson);
+    setInitialSeekTime(seekTime || 0);
+    if (chosenLesson) {
+      const routePath = generateLessonPath(course, chosenLesson);
+      window.history.pushState({}, '', routePath);
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -281,45 +351,59 @@ export default function App() {
     return Array.from(set);
   }, [library, allCourses]);
 
+  // Filter courses by source: All | Local | YouTube
+  const displayCourses = useMemo(() => {
+    if (selectedSource === 'all') return allCourses;
+    return allCourses.filter((c) => (c.source || 'local') === selectedSource);
+  }, [allCourses, selectedSource]);
+
+  const localCoursesCount = useMemo(() => {
+    return allCourses.filter((c) => (c.source || 'local') === 'local').length;
+  }, [allCourses]);
+
+  const youtubeCoursesCount = useMemo(() => {
+    return allCourses.filter((c) => c.source === 'youtube').length;
+  }, [allCourses]);
+
   // 1. Continue Learning Row courses
   const continueLearningCourses = useMemo(() => {
-    if (completedLessonIds.length === 0 || allCourses.length === 0) return [];
+    if (completedLessonIds.length === 0 || displayCourses.length === 0) return [];
 
-    return allCourses.filter((course) => {
+    return displayCourses.filter((course) => {
       const allLessons: Lesson[] = [];
       course.subCourses.forEach((s) => s.lessons.forEach((l) => allLessons.push(l)));
       return allLessons.some((l) => completedLessonIds.includes(l.id));
     });
-  }, [allCourses, completedLessonIds]);
+  }, [displayCourses, completedLessonIds]);
 
   // 2. Featured Courses row
   const featuredCourses = useMemo(() => {
-    if (allCourses.length === 0) return [];
-    const featured = allCourses.filter((c) => c.featured || (c.rating && c.rating >= 4.8));
+    if (displayCourses.length === 0) return [];
+    const featured = displayCourses.filter((c) => c.featured || (c.rating && c.rating >= 4.8));
     if (featured.length > 0) return featured;
-    return allCourses.slice(0, 5);
-  }, [allCourses]);
+    return displayCourses.slice(0, 5);
+  }, [displayCourses]);
 
   // 3. Popular Courses row
   const popularCourses = useMemo(() => {
-    if (allCourses.length === 0) return [];
-    return [...allCourses].sort(
+    if (displayCourses.length === 0) return [];
+    return [...displayCourses].sort(
       (a, b) => (b.rating || 4.7) - (a.rating || 4.7) || b.lessonCount - a.lessonCount
     );
-  }, [allCourses]);
+  }, [displayCourses]);
 
   // 4. New Courses row
   const newCourses = useMemo(() => {
-    if (allCourses.length === 0) return [];
-    return [...allCourses].slice().reverse();
-  }, [allCourses]);
+    if (displayCourses.length === 0) return [];
+    return [...displayCourses].slice().reverse();
+  }, [displayCourses]);
 
   // 5. Category-based rows in clean prioritized sequence
   const categoryRows = useMemo(() => {
-    if (allCourses.length === 0) return [];
+    if (displayCourses.length === 0) return [];
     const map = new Map<string, Course[]>();
 
-    allCourses.forEach((course) => {
+    displayCourses.forEach((course) => {
       const cat = course.category || 'General';
       if (!map.has(cat)) {
         map.set(cat, []);
@@ -351,13 +435,13 @@ export default function App() {
     });
 
     return rows;
-  }, [allCourses]);
+  }, [displayCourses]);
 
   // Search Results: searches COURSES rather than raw file names
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
     const q = searchQuery.toLowerCase().trim();
-    return allCourses.filter(
+    return displayCourses.filter(
       (c) =>
         c.title.toLowerCase().includes(q) ||
         c.name.toLowerCase().includes(q) ||
@@ -367,33 +451,15 @@ export default function App() {
         c.tags.some((t) => t.toLowerCase().includes(q)) ||
         c.subCourses.some((s) => s.name.toLowerCase().includes(q))
     );
-  }, [allCourses, searchQuery]);
+  }, [displayCourses, searchQuery]);
 
   // Filtered courses when a single category is selected in the category filter bar
   const selectedCategoryCourses = useMemo(() => {
     if (selectedCategory === 'All') return [];
-    return allCourses.filter(
+    return displayCourses.filter(
       (c) => c.category.toLowerCase() === selectedCategory.toLowerCase()
     );
-  }, [allCourses, selectedCategory]);
-
-  // If student is actively watching a lesson, display the dedicated classroom player view
-  if (activeCourse && activeLesson) {
-    return (
-      <LessonPlayerView
-        course={activeCourse}
-        currentLesson={activeLesson}
-        onSelectLesson={(lesson) => setActiveLesson(lesson)}
-        onBackToCourse={() => {
-          setSelectedCourseForDetail(activeCourse);
-          setActiveCourse(null);
-          setActiveLesson(null);
-        }}
-        completedLessonIds={completedLessonIds}
-        onToggleComplete={handleToggleComplete}
-      />
-    );
-  }
+  }, [displayCourses, selectedCategory]);
 
   return (
     <div className="min-h-screen flex flex-col font-sans text-[#18324A] relative">
@@ -433,12 +499,19 @@ export default function App() {
 
       {/* All content above the background */}
       <div className="relative z-[1] min-h-screen flex flex-col">
-      {/* Top Navbar */}
+      {/* Top Navbar - Always visible, including in course progress page */}
       <Navbar
-        activeTab={activeTab}
+        activeTab={activeCourse && activeLesson && !isFloatingPlayer ? 'courses' : activeTab}
         onTabChange={(tab) => {
+          // If user navigates via Navbar tabs while watching, shrink video into floating miniplayer
+          if (activeCourse && activeLesson && !isFloatingPlayer) {
+            setIsFloatingPlayer(true);
+          }
           setActiveTab(tab);
           setSearchQuery('');
+          if (!activeCourse || isFloatingPlayer) {
+            window.history.pushState({}, '', '/');
+          }
         }}
         searchQuery={searchQuery}
         onSearchChange={(q) => setSearchQuery(q)}
@@ -451,10 +524,16 @@ export default function App() {
         categories={categoriesList}
         selectedCategory={selectedCategory}
         onSelectCategory={(cat) => {
+          if (activeCourse && activeLesson && !isFloatingPlayer) {
+            setIsFloatingPlayer(true);
+          }
           setSelectedCategory(cat);
           setActiveTab('courses');
         }}
         onScrollToCategories={() => {
+          if (activeCourse && activeLesson && !isFloatingPlayer) {
+            setIsFloatingPlayer(true);
+          }
           const el = document.getElementById('category-filter-bar');
           el?.scrollIntoView({ behavior: 'smooth' });
         }}
@@ -473,7 +552,34 @@ export default function App() {
 
       {/* Main App Content Body */}
       <main className="flex-1">
-        {activeTab === 'settings' ? (
+        {/* If actively watching a lesson in classroom mode (not floating), render LessonPlayerView under Navbar */}
+        {activeCourse && activeLesson && !isFloatingPlayer ? (
+          <LessonPlayerView
+            course={activeCourse}
+            currentLesson={activeLesson}
+            onSelectLesson={(lesson) => {
+              setActiveLesson(lesson);
+              setFloatingPlayerTime(0);
+              window.history.pushState({}, '', generateLessonPath(activeCourse, lesson));
+            }}
+            onBackToCourse={() => {
+              setSelectedCourseForDetail(activeCourse);
+              setActiveCourse(null);
+              setActiveLesson(null);
+              setIsFloatingPlayer(false);
+              window.history.pushState({}, '', '/');
+            }}
+            completedLessonIds={completedLessonIds}
+            onToggleComplete={handleToggleComplete}
+            onMinimizeToFloating={(time, isPl) => {
+              setFloatingPlayerTime(time);
+              setFloatingPlayerPlaying(isPl);
+              setIsFloatingPlayer(true);
+            }}
+            initialTime={floatingPlayerTime || initialSeekTime}
+            initialPlaying={floatingPlayerPlaying}
+          />
+        ) : activeTab === 'settings' ? (
           <SettingsView
             initialTab="libraries"
             onBack={() => setActiveTab('home')}
@@ -487,7 +593,9 @@ export default function App() {
             courses={allCourses}
             completedLessonIds={completedLessonIds}
             onSelectCourse={(course) => setSelectedCourseForDetail(course)}
-            onStartLearning={(course, lesson) => handleStartLearning(course, lesson)}
+            onStartLearning={(course, lesson, timestamp) =>
+              handleStartLearning(course, lesson, timestamp)
+            }
             onExploreCatalog={() => setActiveTab('courses')}
           />
         ) : activeTab === 'home' && !searchQuery ? (
@@ -495,23 +603,94 @@ export default function App() {
             courses={allCourses}
             completedLessonIds={completedLessonIds}
             onSelectCourse={(course) => setSelectedCourseForDetail(course)}
-            onStartLearning={(course, lesson) => handleStartLearning(course, lesson)}
+            onStartLearning={(course, lesson, timestamp) =>
+              handleStartLearning(course, lesson, timestamp)
+            }
             onNavigateToCourses={(cat) => {
               if (cat) setSelectedCategory(cat);
               setActiveTab('courses');
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             onOpenFolderSettings={() => setIsFolderSettingsOpen(true)}
+            onViewAllNotes={() => {
+              setActiveTab('my-learning');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
           />
         ) : (
           /* Course Catalog Page (courses / catalog / search) - Padding matches reference image */
           <div className="w-full max-w-[1440px] mx-auto px-6 sm:px-12 md:px-16 lg:px-20 pt-3 pb-10 space-y-6">
-            {/* 3. Page Header: Courses [ All Courses ▼ ] */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-5">
+            {/* 3. Page Header: Courses + Tab Navigation [ Local | YouTube ] */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 sm:mb-5">
               <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
                 <h1 className="text-2xl sm:text-3xl lg:text-[34px] font-extrabold text-[#18324A] tracking-tight">
                   Courses
                 </h1>
+
+                {/* Source Tab Navigation: Semua | Local | YouTube */}
+                <div className="inline-flex p-1 bg-white/90 backdrop-blur-md rounded-2xl border border-[rgba(80,140,190,0.2)] shadow-2xs">
+                  <button
+                    onClick={() => setSelectedSource('all')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      selectedSource === 'all'
+                        ? 'bg-[#2867A8] text-white shadow-xs'
+                        : 'text-[#6B8195] hover:text-[#18324A]'
+                    }`}
+                  >
+                    <span>Semua Course</span>
+                    <span
+                      className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                        selectedSource === 'all'
+                          ? 'bg-white/25 text-white'
+                          : 'bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      {allCourses.length}
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => setSelectedSource('local')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      selectedSource === 'local'
+                        ? 'bg-[#2867A8] text-white shadow-xs'
+                        : 'text-[#6B8195] hover:text-[#18324A]'
+                    }`}
+                  >
+                    <Folder className="w-3.5 h-3.5" />
+                    <span>Course Local</span>
+                    <span
+                      className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                        selectedSource === 'local'
+                          ? 'bg-white/25 text-white'
+                          : 'bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      {localCoursesCount}
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => setSelectedSource('youtube')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      selectedSource === 'youtube'
+                        ? 'bg-red-600 text-white shadow-xs'
+                        : 'text-[#6B8195] hover:text-[#18324A]'
+                    }`}
+                  >
+                    <Youtube className="w-3.5 h-3.5 fill-current" />
+                    <span>Course YouTube</span>
+                    <span
+                      className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                        selectedSource === 'youtube'
+                          ? 'bg-white/25 text-white'
+                          : 'bg-red-100 text-red-700'
+                      }`}
+                    >
+                      {youtubeCoursesCount}
+                    </span>
+                  </button>
+                </div>
 
                 {/* Dropdown Beside Title on Desktop: [ All Courses ▼ ] */}
                 <div className="relative">
@@ -519,7 +698,7 @@ export default function App() {
                     onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white text-[#2867A8] font-semibold text-xs sm:text-[13px] border border-[rgba(80,140,190,0.22)] shadow-2xs hover:border-[#5B9FE8] hover:bg-[#F4F9FF] transition-all cursor-pointer"
                   >
-                    <span>{selectedCategory === 'All' ? 'All Courses' : selectedCategory}</span>
+                    <span>{selectedCategory === 'All' ? 'All Categories' : selectedCategory}</span>
                     <ChevronDown className="w-3.5 h-3.5 text-[#2867A8]" />
                   </button>
 
@@ -538,7 +717,7 @@ export default function App() {
                               : 'text-[#3E566E] hover:bg-[#F2F8FF] hover:text-[#18324A]'
                           }`}
                         >
-                          <span>{cat === 'All' ? 'All Courses' : cat}</span>
+                          <span>{cat === 'All' ? 'All Categories' : cat}</span>
                           {selectedCategory === cat && (
                             <CheckCircle2 className="w-3.5 h-3.5 text-[#2867A8]" />
                           )}
@@ -549,9 +728,16 @@ export default function App() {
                 </div>
               </div>
 
-              <p className="text-xs sm:text-[13px] text-[#6B8195]">
-                Your personalized learning video library
-              </p>
+              {/* Action Buttons: Add Course from YouTube */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsAddYouTubeModalOpen(true)}
+                  className="px-3.5 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                >
+                  <Youtube className="w-3.5 h-3.5 fill-current" />
+                  <span>+ Tambah dari YouTube</span>
+                </button>
+              </div>
             </div>
 
             {/* 4. Category Filter Bar */}
@@ -771,34 +957,66 @@ export default function App() {
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-[rgba(80,140,190,0.15)] py-6 mt-16 text-center text-xs text-[#6B8195]">
-        <div className="w-full max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="flex items-baseline gap-1">
-              <span className="font-bold text-sm text-black">Dataktif</span>
-              <span className="text-xs font-bold text-[#2867A8]">Learn</span>
+      {/* Picture-in-Picture Floating Window Miniplayer */}
+      {isFloatingPlayer && activeCourse && activeLesson && (
+        <FloatingVideoPlayer
+          course={activeCourse}
+          currentLesson={activeLesson}
+          initialTime={floatingPlayerTime}
+          initialPlaying={floatingPlayerPlaying}
+          onExpand={(time, isPl) => {
+            setFloatingPlayerTime(time);
+            setFloatingPlayerPlaying(isPl);
+            setIsFloatingPlayer(false);
+            window.history.pushState({}, '', generateLessonPath(activeCourse, activeLesson));
+          }}
+          onClose={() => {
+            setIsFloatingPlayer(false);
+            setActiveCourse(null);
+            setActiveLesson(null);
+            window.history.pushState({}, '', '/');
+          }}
+          onSelectLesson={(lesson) => {
+            setActiveLesson(lesson);
+            setFloatingPlayerTime(0);
+            window.history.pushState({}, '', generateLessonPath(activeCourse, lesson));
+          }}
+        />
+      )}
+
+      {/* Footer - Displayed when browsing catalog/dashboard/floating player */}
+      {(!activeCourse || isFloatingPlayer) && (
+        <footer className="mt-auto border-t border-[rgba(80,140,190,0.18)] bg-white/75 backdrop-blur-md py-6 px-4 sm:px-6">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-[#6B8195]">
+            <div className="flex items-center gap-2 text-xs">
+              <div className="flex items-center gap-1.5 font-bold text-[#18324A]">
+                <div className="w-5 h-5 rounded-lg bg-[#5B9FE8] flex items-center justify-center text-white text-[10px] font-black">
+                  D
+                </div>
+                <span>Dataktif</span>
+                <span className="text-xs font-bold text-[#2867A8]">Learn</span>
+              </div>
+              <span>•</span>
+              <span>Milk Blue Morphism UI</span>
             </div>
-            <span>•</span>
-            <span>Milk Blue Morphism UI</span>
+            <div className="flex items-center gap-4 text-[11px]">
+              <span>
+                Local Folder:{' '}
+                <strong className="font-mono text-[#2867A8]">
+                  {library?.videoRoot || './videos'}
+                </strong>
+              </span>
+              <span>•</span>
+              <button
+                onClick={() => setActiveTab('settings')}
+                className="text-[#2867A8] hover:text-[#5B9FE8] hover:underline cursor-pointer font-semibold"
+              >
+                Course Libraries Manager
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-4 text-[11px]">
-            <span>
-              Local Folder:{' '}
-              <strong className="font-mono text-[#2867A8]">
-                {library?.videoRoot || './videos'}
-              </strong>
-            </span>
-            <span>•</span>
-            <button
-              onClick={() => setActiveTab('settings')}
-              className="text-[#2867A8] hover:text-[#5B9FE8] hover:underline cursor-pointer font-semibold"
-            >
-              Course Libraries Manager
-            </button>
-          </div>
-        </div>
-      </footer>
+        </footer>
+      )}
 
       {/* Course Detail / Syllabus Modal */}
       <CourseDetailModal
@@ -821,6 +1039,13 @@ export default function App() {
         isRescanning={isRescanning}
         onSaveAndRescan={handleSaveAndRescan}
         onOpenLibrariesManager={() => setActiveTab('settings')}
+      />
+
+      {/* Add YouTube Course Modal */}
+      <AddYouTubeCourseModal
+        isOpen={isAddYouTubeModalOpen}
+        onClose={() => setIsAddYouTubeModalOpen(false)}
+        onCourseAdded={fetchLibrary}
       />
       </div>
     </div>

@@ -11,9 +11,17 @@ import {
 } from './server/courseScanner';
 import { libraryManager } from './server/libraryManager';
 import { getThumbnailFilePath } from './server/thumbnailGenerator';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import {
+  extractPlaylistId,
+  extractVideoId,
+  fetchYouTubePlaylistMetadata,
+  fetchYouTubeVideoWithChapters,
+  convertPlaylistToCourse,
+  convertVideoChaptersToCourse,
+  getStoredYouTubeCourses,
+  saveYouTubeCourse,
+  deleteStoredYouTubeCourse,
+} from './server/youtubeService';
 
 const CONFIG_FILE = path.join(process.cwd(), 'config.json');
 
@@ -134,7 +142,7 @@ function findLessonById(lessonId: string): {
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
   app.use(express.json());
 
@@ -281,6 +289,112 @@ async function startServer() {
       });
     } catch (err: any) {
       res.status(400).json({ error: err.message || 'Failed to set default library' });
+    }
+  });
+
+  // ==========================================
+  // YOUTUBE VIDEO & PLAYLIST COURSE API ROUTES
+  // ==========================================
+
+  // POST /api/youtube/preview - Preview a YouTube video (with chapters) or playlist before adding
+  app.post('/api/youtube/preview', async (req: Request, res: Response) => {
+    const { url, mode, customChaptersText } = req.body;
+    if (!url || typeof url !== 'string') {
+      res.status(400).json({ error: 'URL atau ID YouTube diperlukan.' });
+      return;
+    }
+
+    try {
+      const isPlaylistMode = mode === 'playlist';
+      const isChaptersMode = mode === 'chapters';
+
+      // Auto-detect if mode is not strictly specified
+      const hasPlaylistId = Boolean(extractPlaylistId(url));
+      const hasVideoId = Boolean(extractVideoId(url));
+
+      let targetMode: 'chapters' | 'playlist' = 'chapters';
+      if (isPlaylistMode) {
+        targetMode = 'playlist';
+      } else if (isChaptersMode) {
+        targetMode = 'chapters';
+      } else if (hasPlaylistId && !hasVideoId) {
+        targetMode = 'playlist';
+      } else {
+        targetMode = 'chapters';
+      }
+
+      if (targetMode === 'chapters') {
+        const videoCourse = await fetchYouTubeVideoWithChapters(url, customChaptersText);
+        res.json({ success: true, mode: 'chapters', videoCourse });
+      } else {
+        const playlist = await fetchYouTubePlaylistMetadata(url);
+        res.json({ success: true, mode: 'playlist', playlist });
+      }
+    } catch (err: any) {
+      res.status(400).json({ error: err.message || 'Gagal memuat data YouTube.' });
+    }
+  });
+
+  // GET /api/youtube/courses - Get list of added YouTube courses
+  app.get('/api/youtube/courses', (req: Request, res: Response) => {
+    const courses = getStoredYouTubeCourses();
+    res.json({ success: true, courses });
+  });
+
+  // POST /api/youtube/courses - Add a YouTube video (with chapters) or playlist as course
+  app.post('/api/youtube/courses', async (req: Request, res: Response) => {
+    const { url, mode, category, level, customTitle, customChaptersText } = req.body;
+    if (!url || typeof url !== 'string') {
+      res.status(400).json({ error: 'URL atau ID YouTube diperlukan.' });
+      return;
+    }
+
+    try {
+      let course: Course;
+      const targetMode: 'chapters' | 'playlist' = mode === 'playlist' ? 'playlist' : 'chapters';
+
+      if (targetMode === 'chapters') {
+        const videoCourse = await fetchYouTubeVideoWithChapters(url, customChaptersText);
+        if (customTitle && customTitle.trim()) {
+          videoCourse.title = customTitle.trim();
+        }
+        course = convertVideoChaptersToCourse(videoCourse, category, level);
+      } else {
+        const playlist = await fetchYouTubePlaylistMetadata(url);
+        if (customTitle && customTitle.trim()) {
+          playlist.title = customTitle.trim();
+        }
+        course = convertPlaylistToCourse(playlist, category, level);
+      }
+
+      saveYouTubeCourse(course);
+      libraryManager.rebuildMergedIndex();
+
+      res.status(201).json({
+        success: true,
+        message: `Kursus YouTube "${course.title}" berhasil ditambahkan ke Library!`,
+        course,
+        library: libraryManager.getMergedLibrary(),
+      });
+    } catch (err: any) {
+      res.status(400).json({ error: err.message || 'Gagal menambahkan kursus YouTube.' });
+    }
+  });
+
+  // DELETE /api/youtube/courses/:id - Delete a YouTube course
+  app.delete('/api/youtube/courses/:id', (req: Request, res: Response) => {
+    const { id } = req.params;
+    try {
+      const updated = deleteStoredYouTubeCourse(id);
+      libraryManager.rebuildMergedIndex();
+      res.json({
+        success: true,
+        message: 'Kursus YouTube berhasil dihapus dari Library.',
+        courses: updated,
+        library: libraryManager.getMergedLibrary(),
+      });
+    } catch (err: any) {
+      res.status(400).json({ error: err.message || 'Gagal menghapus kursus YouTube.' });
     }
   });
 
@@ -560,6 +674,13 @@ async function startServer() {
     res.json({ success: true, note });
   });
 
+  app.delete('/api/user/notes/:id', (req: Request, res: Response) => {
+    const { id } = req.params;
+    userProgress.notes = (userProgress.notes || []).filter((n) => n.id !== id);
+    saveProgress(userProgress);
+    res.json({ success: true });
+  });
+
   // Stream video with full HTTP 206 Range requests and strict library access security
   const handleStreamRequest = (req: Request, res: Response, targetPathOrId: string) => {
     const resolution = libraryManager.resolveVideoPath(targetPathOrId);
@@ -694,9 +815,22 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Milk Blue Course Platform Server running on http://0.0.0.0:${PORT}`);
-  });
+  const tryListen = (port: number) => {
+    const server = app.listen(port, '0.0.0.0', () => {
+      console.log(`Milk Blue Course Platform Server running on http://localhost:${port}`);
+    });
+
+    server.on('error', (err: any) => {
+      if (err.code === 'EADDRINUSE') {
+        console.warn(`Port ${port} is in use, attempting port ${port + 1}...`);
+        tryListen(port + 1);
+      } else {
+        console.error('Server error:', err);
+      }
+    });
+  };
+
+  tryListen(PORT);
 }
 
 startServer();

@@ -23,6 +23,10 @@ export interface Lesson {
   nextLessonId?: string | null;
   isFirstLesson?: boolean;
   isLastLesson?: boolean;
+  source?: 'local' | 'youtube';
+  youtubeVideoId?: string;
+  startTime?: number;
+  endTime?: number;
 }
 
 export interface SubCourse {
@@ -60,6 +64,9 @@ export interface Course {
   updatedAt: string;
   libraryId?: string;
   libraryName?: string;
+  source?: 'local' | 'youtube';
+  playlistUrl?: string;
+  youtubePlaylistId?: string;
 }
 
 export type LibraryStatus = 'active' | 'disabled' | 'missing' | 'error' | 'scanning';
@@ -73,6 +80,8 @@ export interface CourseLibraryConfig {
   lastScanned?: string;
   courseCount: number;
   moduleCount: number;
+  type?: 'local' | 'youtube';
+  playlistUrl?: string;
   lessonCount: number;
   status: LibraryStatus;
   error?: string;
@@ -150,4 +159,47 @@ export interface UserProgress {
   playbackTimes: Record<string, number>; // lessonId -> seconds
   lastWatchedLessonId?: string;
   notes?: Note[];
+}
+
+export type YouTubeImportMode = 'chapters' | 'playlist';
+
+export interface ParsedYouTubeChapter {
+  title: string;
+  startTime: number;
+  endTime: number;
+  startTimeFormatted: string;
+  endTimeFormatted: string;
+  duration: number;
+  durationFormatted: string;
+  thumbnail?: string;
+}
+
+export interface ParsedYouTubeVideoCourse {
+  videoId: string;
+  title: string;
+  description: string;
+  instructor: string;
+  thumbnail: string;
+  totalDuration: number;
+  totalDurationFormatted: string;
+  chapters: ParsedYouTubeChapter[];
+}
+
+export interface ParsedYouTubeVideo {
+  videoId: string;
+  title: string;
+  duration: number;
+  durationFormatted: string;
+  thumbnail: string;
+}
+
+export interface ParsedYouTubePlaylist {
+  playlistId: string;
+  title: string;
+  description: string;
+  instructor: string;
+  thumbnail: string;
+  videos: ParsedYouTubeVideo[];
+  totalDuration: number;
+  totalDurationFormatted: string;
 }

@@ -19,11 +19,116 @@
     "claude-course-chatbot-mcp-skills-artifacts-etc-17-basics-of-mcp-and-connect-with-external-tools",
     "claude-course-chatbot-mcp-skills-artifacts-etc-18-create-skills-using-mcp-and-connectors",
     "claude-cowork-mastery-buildai-teammates-that-actually-2-mental-model-ai-coworker-vs-chatbot-vs-agent",
-    "claude-cowork-mastery-buildai-teammates-that-actually-3-how-claude-thinks-context-reasoning-memory-limitations"
+    "claude-cowork-mastery-buildai-teammates-that-actually-3-how-claude-thinks-context-reasoning-memory-limitations",
+    "claude-cowork-mastery-buildai-teammates-that-actually-4-prompting-task-framing-workflow-design",
+    "claude-cowork-mastery-buildai-teammates-that-actually-5-system-prompts-that-behave-like-employees",
+    "claude-cowork-mastery-buildai-teammates-that-actually-6-role-based-ai-pm-analyst-engineer-researcher",
+    "claudeai-masterclass-automation-ai-agents-1-installation-and-setup",
+    "claudeai-masterclass-automation-ai-agents-2-create-claude-api-key-and-test",
+    "claudeai-masterclass-automation-ai-agents-3-zero-shot-few-shot-chain-of-thought-prompting",
+    "claudeai-masterclass-automation-ai-agents-4-system-prompts-programming-claudes-persona-behaviour",
+    "claudeai-masterclass-automation-ai-agents-5-advanced-prompt-patterns-xml-tags-delimiters-structured-input",
+    "claudeai-masterclass-automation-ai-agents-6-prompt-chaining-for-complex-multi-step-tasks-part-1",
+    "claudeai-masterclass-automation-ai-agents-7-prompt-chaining-for-complex-multi-step-tasks-part-2",
+    "claudeai-masterclass-automation-ai-agents-8-automating-file-management-organise-rename-archive",
+    "claudeai-masterclass-automation-ai-agents-9-document-intelligence-summarize-extract-transform-part-1",
+    "claudeai-masterclass-automation-ai-agents-13-plugins-part-1",
+    "claudeai-masterclass-automation-ai-agents-14-plugins-part-2",
+    "claudeai-masterclass-automation-ai-agents-15-custom-skills",
+    "claudeai-masterclass-automation-ai-agents-16-customize-plugin",
+    "claudeai-masterclass-automation-ai-agents-17-create-new-plugin"
   ],
   "progressPercentByCourse": {},
   "playbackTimes": {},
   "notes": [
+    {
+      "id": "note-1788603132074-4em1",
+      "lessonId": "claudeai-masterclass-automation-ai-agents-10-document-intelligence-summarize-extract-transform-part-2",
+      "courseId": "library-006/claudeai-masterclass-automation-ai-agents",
+      "timestamp": 44,
+      "text": "add",
+      "createdAt": "2026-09-05T10:12:12.075Z"
+    },
+    {
+      "id": "note-1788602296160-fbkv",
+      "lessonId": "claudeai-masterclass-automation-ai-agents-8-automating-file-management-organise-rename-archive",
+      "courseId": "library-006/claudeai-masterclass-automation-ai-agents",
+      "timestamp": 503,
+      "text": "bagus",
+      "createdAt": "2026-09-05T09:58:16.160Z"
+    },
+    {
+      "id": "note-1788602287591-ptxo",
+      "lessonId": "claudeai-masterclass-automation-ai-agents-8-automating-file-management-organise-rename-archive",
+      "courseId": "library-006/claudeai-masterclass-automation-ai-agents",
+      "timestamp": 494,
+      "text": "How to add",
+      "createdAt": "2026-09-05T09:58:07.591Z"
+    },
+    {
+      "id": "note-1788601347911-kjpp",
+      "lessonId": "claudeai-masterclass-automation-ai-agents-3-zero-shot-few-shot-chain-of-thought-prompting",
+      "courseId": "library-006/claudeai-masterclass-automation-ai-agents",
+      "timestamp": 224,
+      "text": "prompt",
+      "createdAt": "2026-09-05T09:42:27.911Z"
+    },
+    {
+      "id": "note-1788523922578-2fim",
+      "lessonId": "claude-course-chatbot-mcp-skills-artifacts-etc-8-concept-of-prompt-engineering",
+      "courseId": "library-002/claude-course-chatbot-mcp-skills-artifacts-etc",
+      "timestamp": 60,
+      "text": "Danish kukukuu",
+      "createdAt": "2026-09-04T12:12:02.578Z"
+    },
+    {
+      "id": "note-1788522647611-4yf7",
+      "lessonId": "claudeai-masterclass-automation-ai-agents-8-automating-file-management-organise-rename-archive",
+      "courseId": "library-006/claudeai-masterclass-automation-ai-agents",
+      "timestamp": 120,
+      "text": "Shakila lucu",
+      "createdAt": "2026-09-04T11:50:47.611Z"
+    },
+    {
+      "id": "note-1788507910292-th0n",
+      "lessonId": "claudeai-masterclass-automation-ai-agents-8-automating-file-management-organise-rename-archive",
+      "courseId": "library-006/claudeai-masterclass-automation-ai-agents",
+      "timestamp": 118,
+      "text": "I can take a note here!",
+      "createdAt": "2026-09-04T07:45:10.292Z"
+    },
+    {
+      "id": "note-1788407643762-5jzs",
+      "lessonId": "claudeai-masterclass-automation-ai-agents-1-installation-and-setup",
+      "courseId": "library-006/claudeai-masterclass-automation-ai-agents",
+      "timestamp": 17,
+      "text": "Bagaimana setup Claude",
+      "createdAt": "2026-09-03T03:54:03.762Z"
+    },
+    {
+      "id": "note-1788404397149-fmog",
+      "lessonId": "n8n-1-introduction-to-n8n-training",
+      "courseId": "library-005/n8n",
+      "timestamp": 47,
+      "text": "Bagaimana ini?",
+      "createdAt": "2026-09-03T02:59:57.149Z"
+    },
+    {
+      "id": "note-1788403381259-1p28",
+      "lessonId": "n8n-1-introduction-to-n8n-training",
+      "courseId": "library-005/n8n",
+      "timestamp": 3,
+      "text": "apa ini",
+      "createdAt": "2026-09-03T02:43:01.259Z"
+    },
+    {
+      "id": "note-1788402565765-gnso",
+      "lessonId": "claude-cowork-mastery-buildai-teammates-that-actually-12-designing-multi-step-reasoning-workflows",
+      "courseId": "library-003/claude-cowork-mastery-buildai-teammates-that-actually",
+      "timestamp": 100,
+      "text": "Cool!",
+      "createdAt": "2026-09-03T02:29:25.765Z"
+    },
     {
       "id": "note-1788368445962-y2tg",
       "lessonId": "openclaw-8-openclaw-local-setup-installation-on-linux-macos-and-windows",

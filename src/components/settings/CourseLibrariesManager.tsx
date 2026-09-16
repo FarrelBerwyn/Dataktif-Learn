@@ -21,10 +21,13 @@ import {
   BookOpen,
   Info,
   ExternalLink,
+  Youtube,
+  Plus,
 } from 'lucide-react';
-import { CourseLibraryConfig, CourseLibrarySummary } from '../../types';
+import { CourseLibraryConfig, CourseLibrarySummary, Course } from '../../types';
 import { AddEditLibraryModal } from './AddEditLibraryModal';
 import { DeleteLibraryModal } from './DeleteLibraryModal';
+import { AddYouTubeCourseModal } from '../AddYouTubeCourseModal';
 
 interface CourseLibrariesManagerProps {
   onCatalogUpdated?: () => void;
@@ -47,6 +50,24 @@ export const CourseLibrariesManager: React.FC<CourseLibrariesManagerProps> = ({
   const [libraryToEdit, setLibraryToEdit] = useState<CourseLibraryConfig | null>(null);
   const [libraryToDelete, setLibraryToDelete] = useState<CourseLibraryConfig | null>(null);
 
+  // Tab navigation & YouTube courses state
+  const [activeTab, setActiveTab] = useState<'local' | 'youtube'>('local');
+  const [youtubeCourses, setYoutubeCourses] = useState<Course[]>([]);
+  const [isAddYtModalOpen, setIsAddYtModalOpen] = useState(false);
+  const [isDeletingYtId, setIsDeletingYtId] = useState<string | null>(null);
+
+  const fetchYouTubeCourses = useCallback(async () => {
+    try {
+      const res = await fetch('/api/youtube/courses');
+      const data = await res.json();
+      if (data.courses) {
+        setYoutubeCourses(data.courses);
+      }
+    } catch (err) {
+      console.error('Failed to load YouTube courses:', err);
+    }
+  }, []);
+
   const fetchLibraries = useCallback(async () => {
     try {
       const res = await fetch('/api/libraries');
@@ -64,7 +85,27 @@ export const CourseLibrariesManager: React.FC<CourseLibrariesManagerProps> = ({
 
   useEffect(() => {
     fetchLibraries();
-  }, [fetchLibraries]);
+    fetchYouTubeCourses();
+  }, [fetchLibraries, fetchYouTubeCourses]);
+
+  const handleDeleteYouTubeCourse = async (courseId: string) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus kursus YouTube ini dari Library?')) return;
+    setIsDeletingYtId(courseId);
+    try {
+      const res = await fetch(`/api/youtube/courses/${encodeURIComponent(courseId)}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        showToast('Kursus YouTube berhasil dihapus dari Library.');
+        await fetchYouTubeCourses();
+        onCatalogUpdated?.();
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsDeletingYtId(null);
+    }
+  };
 
   const showToast = (msg: string) => {
     setActionSuccessMessage(msg);
@@ -306,22 +347,60 @@ export const CourseLibrariesManager: React.FC<CourseLibrariesManagerProps> = ({
         </div>
       </div>
 
-      {/* Search & Filter Bar */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 text-[#9AAEBD] absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search folders by name or path..."
-            className="w-full pl-9 pr-4 py-2 bg-white border border-[rgba(80,140,190,0.22)] rounded-xl text-xs text-[#18324A] placeholder:text-[#9AAEBD] focus:outline-none focus:ring-2 focus:ring-[#5B9FE8] transition-all shadow-xs"
-          />
-        </div>
-        <p className="text-xs text-[#6B8195] font-medium hidden sm:block">
-          Showing {filteredLibraries.length} of {libraries.length} libraries
-        </p>
+      {/* Tab Navigation: Local Libraries vs YouTube Playlists */}
+      <div className="flex p-1.5 bg-[#F0F5FA] rounded-2xl border border-[rgba(80,140,190,0.18)]">
+        <button
+          onClick={() => setActiveTab('local')}
+          className={`flex-1 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+            activeTab === 'local'
+              ? 'bg-white text-[#2867A8] shadow-sm'
+              : 'text-[#6B8195] hover:text-[#18324A]'
+          }`}
+        >
+          <Folder className="w-4 h-4" />
+          <span>Library Local (Folder Disk)</span>
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#DCEEFF] text-[#2867A8]">
+            {libraries.length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('youtube')}
+          className={`flex-1 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+            activeTab === 'youtube'
+              ? 'bg-white text-red-600 shadow-sm'
+              : 'text-[#6B8195] hover:text-[#18324A]'
+          }`}
+        >
+          <Youtube className="w-4 h-4 fill-current" />
+          <span>Library YouTube (Playlist)</span>
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-red-100 text-red-700">
+            {youtubeCourses.length}
+          </span>
+        </button>
       </div>
+
+      {/* ========================================================= */}
+      {/* LOCAL LIBRARIES TAB VIEW */}
+      {/* ========================================================= */}
+      {activeTab === 'local' && (
+        <div className="space-y-4 animate-in fade-in duration-200">
+          {/* Search & Filter Bar */}
+          <div className="flex items-center justify-between gap-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="w-4 h-4 text-[#9AAEBD] absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search folders by name or path..."
+                className="w-full pl-9 pr-4 py-2 bg-white border border-[rgba(80,140,190,0.22)] rounded-xl text-xs text-[#18324A] placeholder:text-[#9AAEBD] focus:outline-none focus:ring-2 focus:ring-[#5B9FE8] transition-all shadow-xs"
+              />
+            </div>
+            <p className="text-xs text-[#6B8195] font-medium hidden sm:block">
+              Showing {filteredLibraries.length} of {libraries.length} libraries
+            </p>
+          </div>
 
       {/* Libraries List */}
       <div className="space-y-4">
@@ -533,6 +612,133 @@ export const CourseLibrariesManager: React.FC<CourseLibrariesManagerProps> = ({
           </div>
         )}
       </div>
+    </div>
+  )}
+
+  {/* ========================================================= */}
+  {/* YOUTUBE LIBRARIES TAB VIEW */}
+  {/* ========================================================= */}
+  {activeTab === 'youtube' && (
+    <div className="space-y-4 animate-in fade-in duration-200">
+      {/* Header Action Bar */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-2xl bg-white border border-[rgba(80,140,190,0.18)] shadow-2xs">
+        <div>
+          <h3 className="text-sm font-bold text-[#18324A] flex items-center gap-2">
+            <Youtube className="w-4 h-4 text-red-600 fill-current" />
+            <span>Koleksi Course dari YouTube Playlist ({youtubeCourses.length})</span>
+          </h3>
+          <p className="text-xs text-[#6B8195] mt-0.5">
+            Kursus materi video online yang diimpor dari Playlist YouTube
+          </p>
+        </div>
+
+        <button
+          onClick={() => setIsAddYtModalOpen(true)}
+          className="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-sm transition-all flex items-center gap-2 cursor-pointer shrink-0"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Tambah Playlist YouTube</span>
+        </button>
+      </div>
+
+      {youtubeCourses.length === 0 ? (
+        <div className="p-12 text-center bg-white rounded-2xl border border-[rgba(80,140,190,0.18)] space-y-3">
+          <div className="w-14 h-14 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center mx-auto border border-red-200 shadow-xs">
+            <Youtube className="w-7 h-7 fill-current" />
+          </div>
+          <h4 className="text-base font-bold text-[#18324A]">Belum Ada Course YouTube</h4>
+          <p className="text-xs text-[#6B8195] max-w-md mx-auto">
+            Tambahkan materi kursus dari link YouTube Playlist favorit Anda untuk belajar dengan pemutar terintegrasi dan fitur catatan.
+          </p>
+          <button
+            onClick={() => setIsAddYtModalOpen(true)}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-sm transition-all cursor-pointer mt-2"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Tambah Playlist Sekarang</span>
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {youtubeCourses.map((c) => (
+            <div
+              key={c.id}
+              className="p-4 rounded-2xl bg-white border border-[rgba(80,140,190,0.18)] shadow-2xs hover:shadow-md transition-all flex flex-col justify-between gap-4"
+            >
+              <div className="flex gap-3.5 items-start">
+                <div className="w-28 aspect-video rounded-xl overflow-hidden bg-slate-900 shrink-0 relative shadow-xs">
+                  <img
+                    src={c.thumbnail}
+                    alt={c.title}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute bottom-1 right-1 px-1 py-0.5 rounded bg-black/80 text-white text-[8px] font-mono">
+                    {c.totalDurationFormatted}
+                  </div>
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-red-100 text-red-700">
+                      YouTube
+                    </span>
+                    <span className="text-[10px] text-[#6B8195] truncate">
+                      {c.category}
+                    </span>
+                  </div>
+                  <h4 className="text-xs font-bold text-[#18324A] line-clamp-2" title={c.title}>
+                    {c.title}
+                  </h4>
+                  <p className="text-[11px] text-[#6B8195] mt-1">
+                    Instruktur: <span className="font-semibold text-[#18324A]">{c.instructor}</span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-3 border-t border-[rgba(80,140,190,0.1)] text-xs">
+                <span className="text-[11px] text-[#6B8195] font-medium">
+                  {c.lessonCount} video materi
+                </span>
+
+                <div className="flex items-center gap-2">
+                  {c.playlistUrl && (
+                    <a
+                      href={c.playlistUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-2.5 py-1.5 rounded-lg text-slate-600 hover:text-red-600 hover:bg-red-50 text-[11px] font-semibold transition-colors flex items-center gap-1"
+                    >
+                      <span>YouTube</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+
+                  <button
+                    onClick={() => handleDeleteYouTubeCourse(c.id)}
+                    disabled={isDeletingYtId === c.id}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                    title="Hapus course ini"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )}
+
+  {/* Add YouTube Course Modal */}
+  <AddYouTubeCourseModal
+    isOpen={isAddYtModalOpen}
+    onClose={() => setIsAddYtModalOpen(false)}
+    onCourseAdded={async () => {
+      await fetchYouTubeCourses();
+      onCatalogUpdated?.();
+    }}
+  />
 
       {/* Add / Edit Library Modal */}
       <AddEditLibraryModal

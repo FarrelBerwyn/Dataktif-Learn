@@ -1,6 +1,6 @@
 # 🎓 Dataktif Learn — Modern Local Video Course & LMS Platform
 
-**Dataktif Learn** adalah platform pembelajaran daring (*Learning Management System / LMS*) dan pemutar kursus video berbasis lokal yang memadukan estetika streaming premium (terinspirasi dari Netflix & Disney+) dengan manajemen kurikulum pendidikan modern.
+**Dataktif Learn** adalah platform pembelajaran daring (*Learning Management System / LMS*) dan pemutar kursus video berbasis lokal dengan manajemen kurikulum pendidikan modern.
 
 Aplikasi ini secara otomatis memindai (*scan*) direktori kursus video di penyimpanan lokal Anda, mengekstrak thumbnail dan durasi langsung dari file video menggunakan `ffmpeg`, menyusun struktur folder bertingkat menjadi kurikulum modul yang terorganisir, serta menyajikan pengalaman belajar interaktif lengkap dengan pelacakan progres, fitur *auto-advance* pelajaran, dan ringkasan kelulusan.
 
