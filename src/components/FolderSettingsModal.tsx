@@ -21,6 +21,14 @@ import {
   Plus,
 } from 'lucide-react';
 import { Course, ParsedYouTubePlaylist, ParsedYouTubeVideoCourse, YouTubeImportMode } from '../types';
+import {
+  fetchClientYouTubePreview,
+  convertClientVideoChaptersToCourse,
+  convertClientPlaylistToCourse,
+  saveClientCustomCourse,
+  getClientCustomCourses,
+  deleteClientCustomCourse,
+} from '../utils/youtubeClientService';
 
 interface FolderSettingsModalProps {
   isOpen: boolean;
@@ -32,6 +40,7 @@ interface FolderSettingsModalProps {
   totalLessons: number;
   isRescanning: boolean;
   onSaveAndRescan: (newPath: string) => void;
+  onOpenLibrariesManager?: () => void;
 }
 
 const CATEGORIES = [
@@ -54,6 +63,7 @@ export const FolderSettingsModal: React.FC<FolderSettingsModalProps> = ({
   totalLessons,
   isRescanning,
   onSaveAndRescan,
+  onOpenLibrariesManager,
 }) => {
   // Main Tab Navigation: Local vs YouTube
   const [activeTab, setActiveTab] = useState<'local' | 'youtube'>('local');
@@ -81,15 +91,22 @@ export const FolderSettingsModal: React.FC<FolderSettingsModalProps> = ({
     setIsLoadingYtList(true);
     try {
       const res = await fetch('/api/youtube/courses');
-      const data = await res.json();
-      if (data.courses) {
-        setExistingYtCourses(data.courses);
+      const contentType = res.headers.get('content-type') || '';
+      if (res.ok && contentType.includes('application/json')) {
+        const data = await res.json();
+        if (data.courses) {
+          setExistingYtCourses(data.courses);
+          return;
+        }
       }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsLoadingYtList(false);
+    } catch {
+      // Backend not reachable, will fallback
     }
+
+    // Static fallback (GitHub Pages)
+    const localCourses = getClientCustomCourses();
+    setExistingYtCourses(localCourses);
+    setIsLoadingYtList(false);
   };
 
   useEffect(() => {
@@ -125,15 +142,27 @@ export const FolderSettingsModal: React.FC<FolderSettingsModalProps> = ({
     setVideoPreview(null);
 
     try {
-      const res = await fetch('/api/youtube/preview', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: trimmed, mode: ytMode }),
-      });
+      let data: any = null;
+      try {
+        const res = await fetch('/api/youtube/preview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: trimmed, mode: ytMode }),
+        });
+        const contentType = res.headers.get('content-type') || '';
+        if (res.ok && contentType.includes('application/json')) {
+          data = await res.json();
+        }
+      } catch {
+        // Backend not reachable
+      }
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Gagal memuat materi YouTube.');
+      if (!data) {
+        data = await fetchClientYouTubePreview(trimmed, ytMode);
+      }
+
+      if (!data) {
+        throw new Error('Gagal memuat materi YouTube.');
       }
 
       if (data.mode === 'chapters' && data.videoCourse) {
@@ -158,23 +187,52 @@ export const FolderSettingsModal: React.FC<FolderSettingsModalProps> = ({
     setYtError(null);
 
     try {
-      const res = await fetch('/api/youtube/courses', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url: playlistUrl.trim(),
-          mode: ytMode,
-          category,
-          customTitle: customTitle.trim() || activeData.title,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Gagal menyimpan kursus YouTube.');
+      let saved = false;
+      try {
+        const res = await fetch('/api/youtube/courses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: playlistUrl.trim(),
+            mode: ytMode,
+            category,
+            customTitle: customTitle.trim() || activeData.title,
+          }),
+        });
+        const contentType = res.headers.get('content-type') || '';
+        if (res.ok && contentType.includes('application/json')) {
+          const data = await res.json();
+          setYtMessage(data.message || 'Kursus YouTube berhasil ditambahkan ke Library!');
+          saved = true;
+        }
+      } catch {
+        // Backend not reachable
       }
 
-      setYtMessage(data.message || 'Kursus YouTube berhasil ditambahkan ke Library!');
+      if (!saved) {
+        let newCourse: Course;
+        if (ytMode === 'chapters' && videoPreview) {
+          newCourse = convertClientVideoChaptersToCourse(
+            videoPreview,
+            category,
+            'All Levels',
+            customTitle.trim() || undefined
+          );
+        } else if (ytPreview) {
+          newCourse = convertClientPlaylistToCourse(
+            ytPreview,
+            category,
+            'All Levels',
+            customTitle.trim() || undefined
+          );
+        } else {
+          throw new Error('Data kursus tidak valid.');
+        }
+
+        saveClientCustomCourse(newCourse);
+        setYtMessage('Kursus YouTube berhasil ditambahkan ke Library!');
+      }
+
       setYtPreview(null);
       setVideoPreview(null);
       setPlaylistUrl('');
@@ -193,13 +251,22 @@ export const FolderSettingsModal: React.FC<FolderSettingsModalProps> = ({
     if (!confirm('Hapus kursus YouTube ini dari Library Anda?')) return;
 
     try {
-      const res = await fetch(`/api/youtube/courses/${encodeURIComponent(courseId)}`, {
-        method: 'DELETE',
-      });
-      if (res.ok) {
-        await fetchYouTubeCourses();
-        onSaveAndRescan(currentFolder);
+      let deleted = false;
+      try {
+        const res = await fetch(`/api/youtube/courses/${encodeURIComponent(courseId)}`, {
+          method: 'DELETE',
+        });
+        if (res.ok) {
+          deleted = true;
+        }
+      } catch {}
+
+      if (!deleted) {
+        deleteClientCustomCourse(courseId);
       }
+
+      await fetchYouTubeCourses();
+      onSaveAndRescan(currentFolder);
     } catch (e) {
       console.error(e);
     }

@@ -124,7 +124,23 @@ export default function App() {
   // - On Localhost: STRICTLY uses personal private local library from local server
   const fetchLibrary = useCallback(async () => {
     if (isGitHubPages) {
-      setLibrary(demoLibraryData as unknown as LibraryData);
+      let customCourses: Course[] = [];
+      try {
+        const stored = localStorage.getItem('custom_youtube_courses');
+        if (stored) customCourses = JSON.parse(stored);
+      } catch {}
+
+      const baseCourses = (demoLibraryData.courses || []) as unknown as Course[];
+      // Merge custom courses, ensuring no duplicate IDs
+      const customIds = new Set(customCourses.map((c) => c.id));
+      const filteredBase = baseCourses.filter((c) => !customIds.has(c.id));
+      const mergedCourses = [...customCourses, ...filteredBase];
+
+      setLibrary({
+        ...demoLibraryData,
+        courses: mergedCourses,
+        totalCourses: mergedCourses.length,
+      } as unknown as LibraryData);
       setIsLoading(false);
       return;
     }

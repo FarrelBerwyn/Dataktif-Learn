@@ -20,6 +20,12 @@ import {
   ParsedYouTubeVideoCourse,
   YouTubeImportMode,
 } from '../types';
+import {
+  fetchClientYouTubePreview,
+  convertClientVideoChaptersToCourse,
+  convertClientPlaylistToCourse,
+  saveClientCustomCourse,
+} from '../utils/youtubeClientService';
 
 interface AddYouTubeCourseModalProps {
   isOpen: boolean;
@@ -89,19 +95,34 @@ export const AddYouTubeCourseModal: React.FC<AddYouTubeCourseModalProps> = ({
 
     try {
       const textToUse = overrideText !== undefined ? overrideText : customChaptersText;
-      const res = await fetch('/api/youtube/preview', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url: trimmed,
-          mode: importMode,
-          customChaptersText: textToUse || undefined,
-        }),
-      });
+      let data: any = null;
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Gagal mengambil data dari YouTube.');
+      try {
+        const res = await fetch('/api/youtube/preview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: trimmed,
+            mode: importMode,
+            customChaptersText: textToUse || undefined,
+          }),
+        });
+
+        const contentType = res.headers.get('content-type') || '';
+        if (res.ok && contentType.includes('application/json')) {
+          data = await res.json();
+        }
+      } catch {
+        // Backend not reachable, will fallback to client-side extraction
+      }
+
+      // If backend was not available (e.g. GitHub Pages static hosting), use client-side extractor!
+      if (!data) {
+        data = await fetchClientYouTubePreview(trimmed, importMode, textToUse || undefined);
+      }
+
+      if (!data) {
+        throw new Error('Gagal mengambil data dari YouTube.');
       }
 
       if (data.mode === 'chapters' && data.videoCourse) {
@@ -131,27 +152,54 @@ export const AddYouTubeCourseModal: React.FC<AddYouTubeCourseModalProps> = ({
     setErrorMessage(null);
 
     try {
-      const res = await fetch('/api/youtube/courses', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url: urlInput.trim(),
-          mode: importMode,
-          category,
-          level,
-          customTitle:
-            customTitle.trim() ||
-            (importMode === 'chapters' ? videoPreview?.title : playlistPreview?.title),
-          customChaptersText: importMode === 'chapters' ? customChaptersText : undefined,
-        }),
-      });
+      let saved = false;
+      const finalTitle =
+        customTitle.trim() ||
+        (importMode === 'chapters' ? videoPreview?.title : playlistPreview?.title) ||
+        'YouTube Course';
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Gagal menyimpan kursus YouTube.');
+      try {
+        const res = await fetch('/api/youtube/courses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: urlInput.trim(),
+            mode: importMode,
+            category,
+            level,
+            customTitle: finalTitle,
+            customChaptersText: importMode === 'chapters' ? customChaptersText : undefined,
+          }),
+        });
+
+        const contentType = res.headers.get('content-type') || '';
+        if (res.ok && contentType.includes('application/json')) {
+          const data = await res.json();
+          setSuccessMessage(data.message || 'Kursus YouTube berhasil ditambahkan!');
+          saved = true;
+        }
+      } catch {
+        // Backend not reachable, fall through to client-side saving
       }
 
-      setSuccessMessage(data.message || 'Kursus YouTube berhasil ditambahkan!');
+      // If backend was not available (e.g. GitHub Pages), save directly to localStorage!
+      if (!saved) {
+        let course: any = null;
+        if (importMode === 'chapters' && videoPreview) {
+          course = convertClientVideoChaptersToCourse(videoPreview, category, level, finalTitle);
+        } else if (playlistPreview) {
+          course = convertClientPlaylistToCourse(playlistPreview, category, level, finalTitle);
+        }
+
+        if (course) {
+          saveClientCustomCourse(course);
+          setSuccessMessage('Kursus YouTube berhasil disimpan ke koleksi belajar!');
+          saved = true;
+        } else {
+          throw new Error('Gagal memproses data kursus untuk disimpan.');
+        }
+      }
+
       onCourseAdded?.();
 
       setTimeout(() => {

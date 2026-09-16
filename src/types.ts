@@ -164,6 +164,7 @@ export interface UserProgress {
 export type YouTubeImportMode = 'chapters' | 'playlist';
 
 export interface ParsedYouTubeChapter {
+  order?: number;
   title: string;
   startTime: number;
   endTime: number;
